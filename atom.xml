@@ -4,13 +4,206 @@
   <title><![CDATA[张宁网·源创库]]></title>
   <link href="https://zning.me/atom.xml" rel="self"/>
   <link href="https://zning.me/"/>
-  <updated>2021-06-15T22:02:40+08:00</updated>
+  <updated>2021-06-15T22:06:58+08:00</updated>
   <id>https://zning.me/</id>
   <author>
     <name><![CDATA[]]></name>
     
   </author>
   <generator uri="http://www.mweb.im/">MWeb</generator>
+  
+  <entry>
+    <title type="html"><![CDATA[面向白嫖(Baipiao-oriented)的DevOps：将定时更新任务扔给Github Actions去做]]></title>
+    <link href="https://zning.me/16288505655950.html"/>
+    <updated>2021-08-13T18:29:25+08:00</updated>
+    <id>https://zning.me/16288505655950.html</id>
+    <content type="html"><![CDATA[
+<p>最近有个需求，由于最近在某平台更新内容，其提供的订阅机制为RSS订阅分发，不过其中带有的一些额外的信息有点尴尬，并不能直接发送到其他同类型内容平台分发，因此想到了通过程序先将不适宜信息处理后，定期更新RSS文件到自己的Github Pages上，然后其他同类型内容平台获取的RSS为自己的Github Pages上托管的RSS文件。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>于是，需求比较明确了：</p>
+
+<ul>
+<li>可以托管并执行程序，不仅可以获取RSS文件内容，又可以通过程序修改；</li>
+<li>可以定时更新任务，并且根据更新任务内容push到仓库指定分支。</li>
+</ul>
+
+<p>我第一时间想起了Github Actions这个工具，众所周知，这个工具自2019年内测到向公众开放后，众多从业者将自己的博客的编译工作从本地线下扔到了Github Actions上；一些从业者所写的前端小玩意儿，都可以很轻松的通过Github Actions将工程迅速部署，提高了效率以及节约了成本。甚至一些有后端的工程，只需要寻（bai）找（piao）一个后端存储数据的地儿，就可以低成本甚至零成本搭建个人主页，这简直是一个十分有效提高生产率的东西啊！</p>
+
+<p>不过说起来，其实Github Actions与Jenkins的功能是一致的，都是一个CI/CD的DevOps生产力工具，只不过Github Actions以其简单易用一经推出就受到了十分的欢迎。</p>
+
+<p>虽然一直有知道这个功能，但是苦于没什么场景可以使用，今天这个需求正好让我能够使用Github Actions，零成本的解决一下需求。</p>
+
+<p>首先，准备一下更新RSS的主程序<code>convertRSS.py</code>和<code>requirements.txt</code>：</p>
+
+<pre><code class="language-python">import requests
+import os, sys
+import argparse
+
+# the main get content codes
+def get_url(url):
+    # some server requests need headers, otherwise return empty
+    headers = {
+        &#39;User-Agent&#39;: &#39;Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36&#39;,
+    }
+    page = requests.get(url, headers = headers).content
+    # convert to str within utf-8 encoding
+    page = page.decode(&#39;utf-8&#39;)
+    return page
+
+# the main convert codes
+def convert_content(content):
+    content = content.replace(&quot;张宁网·源创库&quot;,&quot;张宁网·源创库&quot;)
+    return content
+
+if __name__ == &#39;__main__&#39;:
+    # need system args input
+    arg_prsr = argparse.ArgumentParser()
+    arg_prsr.add_argument(&#39;--url&#39;, required=True, type=str, default=&quot;&quot;, help = &#39;Required. Which one RSS Xml do you want to convert.&#39;)
+    args = arg_prsr.parse_args(sys.argv[1:])
+    url = args.url
+
+    # place a flag to judge should write file to disk or not
+    flag = False
+
+    url_content = convert_content(get_url(url))
+    url_list = url.split(&quot;/&quot;)
+
+    if os.path.exists(url_list[-1]):
+        with open(url_list[-1], &#39;r&#39;, encoding=&#39;utf-8&#39;) as file:
+            if(file.read()!=url_content):
+                flag = True
+    else:
+        # if the file dose not exist, the flag should placed True to convert first time
+        flag = True
+
+    if flag:
+        # writing to disk codes
+        with open(url_list[-1], &#39;w&#39;, encoding=&#39;utf-8&#39;) as file:
+            file.write(url_content)
+        print(&quot;The RSS Xml had update, convert done.&quot;)
+        sys.exit(0)
+    else:
+        print(&quot;The RSS Xml have no change, convert abort.&quot;)
+        sys.exit(1)
+</code></pre>
+
+<p>这里解释下我的程序的逻辑：通过系统执行传参<code>--url</code>将需要处理的RSS XML URL传值进入，后通过函数<code>get_url()</code>完成源文件的获取并转换成字符串，紧接着通过<code>convert_content()</code>函数处理替换源文件字符串。完成后紧接着判断本地是否有该文件，如果没有则直接创建，如果有则判断本地文件是否与处理替换后文件内容是否相同，如果不相同则覆盖修改本地文件完成更新，并以<code>0</code>返回值正常退出，如果相同则无需更新，以<code>1</code>返回值返回退出程序。</p>
+
+<p>至于为什么设计这两个返回值，文末会讲到。</p>
+
+<p>下面是该程序的<code>requirements.txt</code>，显然得，不再赘述：</p>
+
+<pre><code class="language-text">requests==2.25.1
+</code></pre>
+
+<p>之后Github Actions创建一个仓库，把这俩文件放进去。</p>
+
+<p>另外是需要去Settings-Developer settings-Personal access tokens（链接：<a href="https://github.com/settings/tokens">https://github.com/settings/tokens</a>）里面生成一个密钥，将这个密钥添加到仓库设置的Actions secrets（链接：<a href="https://github.com/$%7Busername%7D/$%7Breponame%7D/settings/secrets/actions">https://github.com/${username}/${reponame}/settings/secrets/actions</a>），在Actions secrets的名字即是配置文件引入的变量名，这里我的仓库叫<code>CONVERT_TOKEN</code>。</p>
+
+<p><img src="media/16288505655950/FireShot%20Capture%20016%20-%20New%20personal%20access%20token%20-%20github.com.png" alt="FireShot Capture 016 - New personal access token - github.com"/></p>
+
+<p><img src="media/16288505655950/FireShot%20Capture%20017%20-%20Actions%20secrets%20-%20github.com.png" alt="FireShot Capture 017 - Actions secrets - github.com"/></p>
+
+<p>文件和密钥均备妥后，点击菜单标签Actions，后点击<code>set up a workflow yourself</code>，进入创建自己的工作流。</p>
+
+<p>工作流创建文件使用的是YAML语法，具体使用文档可以查阅：<a href="https://docs.github.com/cn/actions">https://docs.github.com/cn/actions</a> 这里不再赘述更多用法，直接贴出本示例项目创建的工作流文件<code>convert-rss.yml</code>：</p>
+
+<pre><code class="language-yaml">name: &#39;Convert RSS Actions&#39;
+
+on:
+  schedule:
+    - cron: &#39;0,15,30,45 * * * *&#39;
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout from repo
+      uses: actions/checkout@main
+      with:
+        ref: main
+
+    - name: Install Python latest
+      uses: actions/setup-python@main
+      with:
+        python-version: &#39;3.x&#39;
+        architecture: &#39;x64&#39;
+
+    - name: Install dependencies
+      run: |
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Doing fetch
+      run: python convertRSS.py --url https://zning.me/atom.xml
+
+    - name: Commit files
+      run: |
+        git config --local user.email &quot;zhn038@gmail.com&quot;
+        git config --local user.name &quot;ZNing&quot;
+        git add .
+        git commit -m &quot;提交RSS XML更新 $(date &quot;+%Y-%m-%d %H:%M:%S&quot;)&quot;
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.CONVERT_TOKEN }}
+        branch: main
+</code></pre>
+
+<p>Github会在该分支仓库里创建<code>.github/workflow</code>文件夹，并在里面创建工作流文件<code>convert-rss.yml</code>，文件名没有任何要求，Github Actions会对该文件夹下所有<code>.yml</code>进行解析与执行。</p>
+
+<p>这里稍微解释一下我自己这个工作流文件所干的事情：</p>
+
+<ul>
+<li>工作流名称为<code>Convert RSS Actions</code>；</li>
+<li>工作流为定时计划工作流，工作时间是每隔15分钟一次；</li>
+<li>工作流build有6个任务，顺序执行，每个步骤的具体是：
+<ol>
+<li>检出main仓库；</li>
+<li>安装最新版Python 3；</li>
+<li>根据仓库是否有<code>requirements.txt</code>安装Python依赖；</li>
+<li>执行Python程序，对RSS XML进行处理；</li>
+<li>对更新的RSS XML进行提交；</li>
+<li>对更新的RSS XML进行推送至指定分支。</li>
+</ol></li>
+</ul>
+
+<p><img src="media/16288505655950/FireShot%20Capture%20009%20-%20Actions%20%C2%B7%20zning1994_github-actions-examples%20-%20github.com.png" alt="FireShot Capture 009 - Actions · zning1994_github-actions-examples - github.com"/></p>
+
+<p><img src="media/16288505655950/FireShot%20Capture%20012%20-%20New%20File%20-%20github.com.png" alt="FireShot Capture 012 - New File - github.com"/></p>
+
+<p>创建好后，就等着Github Actions自己按计划调起Actions工作即可，不过根据实际测试，由于这玩意儿全球从业者估计使用的都挺多的，所以实际执行时间并不会完全按照设定的时间走，一般会晚个8-12分钟。</p>
+
+<blockquote>
+<p>仓库所有内容其实都可以本地创建，其中Actions的定义文件在本地创建<code>.github/workflow</code>文件夹后放置提交推送给Github也是可以的，只不过我这边为了演示方便，就不再在本地做操作了，直接在Github网页上直接将所有步骤都解决了。</p>
+</blockquote>
+
+<p><img src="media/16288505655950/FireShot%20Capture%20019%20-%20Actions%20%C2%B7%20zning1994_github-actions-examples%20-%20github.com.png" alt="FireShot Capture 019 - Actions · zning1994_github-actions-examples - github.com"/></p>
+
+<p><img src="media/16288505655950/FireShot%20Capture%20020%20-%20Update%20convert-rss.yml%20%C2%B7%20zning1994_github-actions-examples@b2e36a9_%20-%20github.com.png" alt="FireShot Capture 020 - Update convert-rss.yml · zning1994_github-actions-examples@b2e36a9_ - github.com"/></p>
+
+<p>这里解释一下刚才Python返回值的问题，因为我需要区分两种状态情况，而Github Actions是可以根据返回值判断该节点运行正常与否（详见：<a href="https://docs.github.com/cn/actions/creating-actions/setting-exit-codes-for-actions%EF%BC%89%E5%8F%AA%E8%A6%81%E6%98%AF0%E5%B0%B1%E8%AE%A4%E4%B8%BA%E6%98%AF%E6%AD%A3%E5%B8%B8%EF%BC%8C%E9%9D%9E0%E5%88%99%E6%98%AF%E5%BC%82%E5%B8%B8%EF%BC%8C%E4%B8%94%E5%BC%82%E5%B8%B8%E4%B8%8D%E4%BC%9A%E7%BB%A7%E7%BB%AD%E6%89%A7%E8%A1%8C%E6%8E%A5%E4%B8%8B%E6%9D%A5%E7%9A%84%E8%8A%82%E7%82%B9%E3%80%82">https://docs.github.com/cn/actions/creating-actions/setting-exit-codes-for-actions）只要是0就认为是正常，非0则是异常，且异常不会继续执行接下来的节点。</a></p>
+
+<p>而我的需求其实就正好是，如果有更新则提交并推送仓库，如果没有则终止即可。因此上面的Python程序才会设置如此的返回值。</p>
+
+<blockquote>
+<p>不过可能是我Python程序有点小问题，发现如果内容相同的时候，后台程序也会提交更新，但是这个情况出现的很随机，有的时候又比对相同1值退出，正常返回错误。目前不太清楚这是为什么，欢迎知道的大佬在评论区留言。</p>
+</blockquote>
+
+<p><img src="media/16288505655950/FireShot%20Capture%20022%20-%20%E6%8F%90%E4%BA%A4RSS%20XML%E6%9B%B4%E6%96%B0%202021-08-13%2007_50_01%20%C2%B7%20zning1994_github-actions-examples@e_%20-%20github.com.png" alt="FireShot Capture 022 - 提交RSS XML更新 2021-08-13 07_50_01 · zning1994_github-actions-examples@e_ - github.com"/></p>
+
+<p><img src="media/16288505655950/FireShot%20Capture%20022%20-%20%E6%8F%90%E4%BA%A4RSS%20XML%E6%9B%B4%E6%96%B0%202021-08-13%2007_50_01%20%C2%B7%20zning1994_github-actions-examples@e_%20-%20github.com%20-2-.png" alt="FireShot Capture 022 - 提交RSS XML更新 2021-08-13 07_50_01 · zning1994_github-actions-examples@e_ - github.com -2-"/></p>
+
+<p>最后，本文示例程序正常开源，协议MIT，欢迎自取使用：</p>
+
+<p>Github：<a href="https://github.com/zning1994/github-actions-examples">https://github.com/zning1994/github-actions-examples</a></p>
+
+<p>Gitee镜像：<a href="https://gitee.com/zning/github-actions-examples">https://gitee.com/zning/github-actions-examples</a></p>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[快速通过中转方式下载GitHub/GitLab仓库]]></title>
@@ -5378,53 +5571,6 @@ train acc, test acc | 0.9480833333333333, 0.9479</p>
 <p>而不仅是深度学习，包括机器学习、神经网络在内的很多人工智能领域基础学科，目前基础理论的研究情况不容乐观。<strong>一个是未见有更有创新性的算法在学科内出现，更多的是优化与改变；另一方面是神经网络对于人类仍然是一种黑盒，不知如何解释其成因是一个非常严肃的问题。</strong>人工智能从上世纪五十年代开始至今已然经历过至少两轮巨大的波折了，那么现在发展到这个程度的机器学习、神经网络、深度学习等人工智能领域，会不会到了现在这个阶段的天花板？AI跌落神坛的历史会不会重演？这一切都取决于这一代人的努力的情况。</p>
 
 <p>不过，对于现阶段AI应用的落地，目前的技术已然足够。对于世界上的绝大部分人来说，现阶段AI的前景，至少还有十年期的发展机遇。然而，警惕仍不能放松，接下来人工智能领域基础学科的发展是什么样的，仍然是关键的风向标。可以说，<strong>如若AI应用落地能看到十年发展机遇，那么人工智能领域基础学科的发展，能让我们看到半个世纪后的未来</strong>。</p>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[数据挖掘大赛内部赛赛后总结(上)]]></title>
-    <link href="https://zning.me/15661436758435.html"/>
-    <updated>2019-08-18T23:54:35+08:00</updated>
-    <id>https://zning.me/15661436758435.html</id>
-    <content type="html"><![CDATA[
-<p>最近参与了单位内举办的数据挖掘大赛内部赛，参与后感触良多，现就此进行简单总结。总结分为两篇：一篇为经验与经历总结，另一篇偏向于挖掘中真实技术技巧的。本篇为第一篇，经验与经历总结。</p>
-
-<span id="more"></span><!-- more -->
-
-<h2 id="toc_0">比赛详情</h2>
-
-<p>本次比赛为内部赛，从7月15日10:00开始到8月15日15:00结束，主要共分为两个阶段，7月15日 10:00-8月12日 10:00为内部赛A榜，8月12日15:00-8月15日15:00为内部赛B榜。共有3个题目供选择，在7月25日17:00前各队伍可随机做题，但必须在此之前选定题目。每支队伍每天有3次提交预测结果的机会。</p>
-
-<p>前几天我队对题目一、题目二进行了试做与总结，并在经过前期试做选题后，我们选定题一作为比赛题目。经过两轮较量，截止8月15日15:00，AB榜全部结束，题一AB榜均有效提交共147支队伍（题二74支、题三50支），我队在榜单前十。但与等第区、奖金区失之交臂，同奖金区最后一名分值只相差0.0000673。</p>
-
-<h2 id="toc_1">比赛经验与教训</h2>
-
-<p>本次比赛是我首次参加数据挖掘类竞赛，比较新鲜也比较紧张。主要还是跟随团队大佬学习的过程。本次比赛学到了几点经验，也踩了不少教训的坑，现总结如下：</p>
-
-<ol>
-<li><strong>特征工程一定要做好，否则后面的再多的模型上分也难。</strong>特征工程犹如地基一样，牢固则历经风雨，不牢则风雨飘摇。</li>
-<li><strong>分类问题、回归问题等监督学习类问题一定要做好本地模型训练后的交叉验证，这样可以在本地就能判断训练情况的好坏。</strong>本地交叉验证不仅可以提高准确度，减少不必要的提交次数，也可以增加自己对模型的信心与认知度。</li>
-<li><strong>无论如何不能怀疑自己已经建立好的有效的交叉验证结果。</strong>本地有效的交叉验证一旦建立完成，一切的一切都以本地交叉验证结果为基准，其升降代表了训练结果的升降，毋庸置疑。虽然可能本地交叉验证与远程提交的交叉验证结果有些许差距，但是这样的差距也是线性相关的，因此本地交叉验证仍然是有效的。</li>
-<li><strong>对于远端排行榜上的分数应该有一个清醒的认识，尤其是A榜，分高不一定真高，有可能是过拟合。</strong>对A榜过拟合虽然是可以的，但是一定要自己清醒的认识到过拟合的情况是存在的，并在A榜就给出相关对策例如调整模型训练参数、调整优化特征工程、添加新特征、增加模型融合等方法来解决这些问题。同时应给自己心里对B榜或者Private可能会出现的分数差距做准备。</li>
-<li><strong>榜单出现黑马不要自乱阵脚，一定要对自己的建模思路有一定的信心和定力。</strong>机器智能类比赛榜单不同于ACM榜单那样精准性极高，也不同于数学建模那种事后评分的情况。榜单只是给予一个人追赶目标的方向，如果建模思路正确、特征工程充足，按部就班来也是没问题的。当然出现黑马也可以激发自己去想是否有自己以为做的很好但是仍然有改进的地方。</li>
-<li><strong>模型融合或单一模型有可能都能取得高分，需要看实际情况适时处理。</strong>本次比赛涉及到的均为实际业务上的问题，因此在没有高超的自动化特征工程的能力的情况下的话，自动特征工程+根据业务特性手工挖掘特征工程才是应该走的正途。而这样扎实的特征工程情况下，对模型是否做融合，需要自己根据比赛时间和参赛队伍的实际情况做判断。<strong>一般来说模型融合的效果要比单一模型要好，毕竟多模型融合对于问题的泛化能力一定是提高的</strong>，但是如果确实没有时间的情况下，应该着重对某一或某几个模型进行重点攻克，这样才能够把握比赛重点。</li>
-<li><strong>在特征工程无法通过流水线或者纯数学理论来做到完美的情况下，通过对题目业务本身去手工生成特征，尤其是多表间的特征生成，可能是极为关键的。</strong>这次比赛虽然特征工程做到了比绝大部分队伍好一点，但是表间特征这块是欠缺的，直观上感觉表间特征去创造的时候一定要贴合业务，但是由于我们队伍是纯技术队伍，没人懂得业务，因此从这些地方来看特征工程做的并不完美。</li>
-<li><strong>在A榜的时候，每个人都应该去做一个模型，同时在榜上验证模型情况。无论模型是何种表现，在B榜时，只要是交叉验证有效的模型，都可以通过模型融合提升大模型泛化能力，以求B榜高分。</strong>这次我们在B榜遗憾跌出奖金区也是因为前期没能考虑模型泛化的情况，对模型融合前的模型准备十分不足导致B榜没有时间去做模型的融合。当然，模型也不是越多越好，基本上一个三人队伍一个人专攻一种模型最后融合的结果才是最好的。</li>
-<li><strong>调参要仔细！</strong>B榜关闭后，我们发现最后一天B榜提交的模型中有个参数有点问题，小改之后本地交叉验证有所提高……虽然具体情况无法在远端结果得知，但是仍然是有一线希望的。当然这与上一条的教训息息相关了。因为时间不够，精神紧绷的情况下就有些地方注意不到了。所以还是要吸取上面的教训，把前期工作做好。</li>
-</ol>
-
-<h2 id="toc_2">比赛感悟</h2>
-
-<p>这次比赛是我第一次参加正式的规模的数据挖掘比赛，有些东西真的都是现学现卖。当然主要还是靠团队内大佬同事的炮火猛攻才能拿到这个名次，我这个打酱油的就是膜拜和学习了。</p>
-
-<p>不过这次比赛让我看到了传统机器学习与神经网络和深度网络成熟发展的当下的机器学习之间的差异，确实在此次比赛之中，通过程序手段而不是传统的人工去处理机器学习的一些流程，尽量降低人为主观因素的干预。通过公认的、有算法理论支撑的流水线机器学习手段，确实是未来机器学习的主流方向。</p>
-
-<p>反正趁此机会恶补了从特征工程到机器学习的一系列知识，顺便抓紧了神经网络深度学习的学习进程，对自己来说这是一种历练和经历吧。</p>
-
-<h2 id="toc_3">未来展望</h2>
-
-<p>从此比赛开始我大体也知道了此类机器学习数据类比赛该怎么打了，下一步就是移步Kaggle和天池之类的地方，去实打实的搞一搞比赛，以赛促学吧。希望一年以后能够有个某比赛第一的收获。</p>
 
 ]]></content>
   </entry>
