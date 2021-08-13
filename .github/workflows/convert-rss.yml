@@ -32,7 +32,8 @@ jobs:
       run: |
         git config --local user.email "zhn038@gmail.com"
         git config --local user.name "ZNing"
-        git commit -m "提交RSS XML更新 $(date "+%Y-%m-%d %H:%M:%S")" -a
+        git add .
+        git commit -m "提交RSS XML更新 $(date "+%Y-%m-%d %H:%M:%S")"
 
     - name: Push changes
       uses: ad-m/github-push-action@master
