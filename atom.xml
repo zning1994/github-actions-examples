@@ -4,7 +4,7 @@
   <title><![CDATA[张宁网·源创库]]></title>
   <link href="https://zning.me/atom.xml" rel="self"/>
   <link href="https://zning.me/"/>
-  <updated>2021-06-15T22:06:58+08:00</updated>
+  <updated>2021-08-13T18:43:55+08:00</updated>
   <id>https://zning.me/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -184,7 +184,7 @@ jobs:
 
 <p><img src="media/16288505655950/FireShot%20Capture%20020%20-%20Update%20convert-rss.yml%20%C2%B7%20zning1994_github-actions-examples@b2e36a9_%20-%20github.com.png" alt="FireShot Capture 020 - Update convert-rss.yml · zning1994_github-actions-examples@b2e36a9_ - github.com"/></p>
 
-<p>这里解释一下刚才Python返回值的问题，因为我需要区分两种状态情况，而Github Actions是可以根据返回值判断该节点运行正常与否（详见：<a href="https://docs.github.com/cn/actions/creating-actions/setting-exit-codes-for-actions%EF%BC%89%E5%8F%AA%E8%A6%81%E6%98%AF0%E5%B0%B1%E8%AE%A4%E4%B8%BA%E6%98%AF%E6%AD%A3%E5%B8%B8%EF%BC%8C%E9%9D%9E0%E5%88%99%E6%98%AF%E5%BC%82%E5%B8%B8%EF%BC%8C%E4%B8%94%E5%BC%82%E5%B8%B8%E4%B8%8D%E4%BC%9A%E7%BB%A7%E7%BB%AD%E6%89%A7%E8%A1%8C%E6%8E%A5%E4%B8%8B%E6%9D%A5%E7%9A%84%E8%8A%82%E7%82%B9%E3%80%82">https://docs.github.com/cn/actions/creating-actions/setting-exit-codes-for-actions）只要是0就认为是正常，非0则是异常，且异常不会继续执行接下来的节点。</a></p>
+<p>这里解释一下刚才Python返回值的问题，因为我需要区分两种状态情况，而Github Actions是可以根据返回值判断该节点运行正常与否（详见：<a href="https://docs.github.com/cn/actions/creating-actions/setting-exit-codes-for-actions">https://docs.github.com/cn/actions/creating-actions/setting-exit-codes-for-actions</a>）只要是0就认为是正常，非0则是异常，且异常不会继续执行接下来的节点。</p>
 
 <p>而我的需求其实就正好是，如果有更新则提交并推送仓库，如果没有则终止即可。因此上面的Python程序才会设置如此的返回值。</p>
 
